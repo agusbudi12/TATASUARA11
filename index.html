@@ -90,16 +90,47 @@ function timeUp(){
 let i=0, correctCount=0, answered=false, studentName="", studentAbsen="", sessionCode="", savedResult=false;
 const game=document.getElementById("game");
 
-// Anti-pindah-tab: jika siswa meninggalkan tab/aplikasi saat ujian berlangsung,
-// ujian langsung diakhiri dan nilai dari jawaban yang sudah dikerjakan ditampilkan.
+// ============================================================
+// ANTI PINDAH TAB / PINDAH APLIKASI
+// Jika halaman ujian kehilangan fokus atau menjadi tidak terlihat,
+// ujian langsung diakhiri dan nilai yang sudah dikerjakan dihitung.
+// Catatan: browser TIDAK mengizinkan JavaScript memblokir Ctrl+T
+// atau pembukaan tab baru. Yang bisa dilakukan adalah langsung
+// mengakhiri ujian ketika tab/aplikasi kehilangan fokus.
+// ============================================================
 let tabSwitchFinished=false;
+let finishingByTabSwitch=false;
+
+function finishBecauseLeftPage(reason){
+  if(!gameStarted || tabSwitchFinished || finishingByTabSwitch) return;
+
+  // Kunci terlebih dahulu agar visibilitychange + blur tidak menjalankan
+  // result() dua kali pada saat yang hampir bersamaan.
+  finishingByTabSwitch=true;
+  tabSwitchFinished=true;
+  gameStarted=false;
+  stopTimer();
+
+  console.warn("Ujian diakhiri karena siswa meninggalkan halaman:", reason);
+  result(false,true);
+}
+
+// Paling kuat untuk desktop: membuka tab baru / berpindah window
+// biasanya membuat window kehilangan fokus.
+window.addEventListener("blur",()=>{
+  finishBecauseLeftPage("window blur");
+});
+
+// Untuk mobile dan perpindahan tab/aplikasi.
 document.addEventListener("visibilitychange",()=>{
-  if(document.hidden && gameStarted && !tabSwitchFinished){
-    tabSwitchFinished=true;
-    gameStarted=false;
-    stopTimer();
-    result(false,true);
+  if(document.visibilityState === "hidden") {
+    finishBecauseLeftPage("document hidden");
   }
+});
+
+// Cadangan ketika halaman benar-benar ditinggalkan/dinavigasi.
+window.addEventListener("pagehide",()=>{
+  finishBecauseLeftPage("pagehide");
 });
 
 function identity(){
@@ -131,7 +162,7 @@ async function start(){
    alert("Koneksi rekap belum dikonfigurasi. Pastikan firebase-config.js sudah diisi dengan benar.");
    return;
  }
- studentName=n;studentAbsen=a;sessionCode=s;i=0;correctCount=0;answered=false;savedResult=false;tabSwitchFinished=false;gameStarted=true;startTimer();
+ studentName=n;studentAbsen=a;sessionCode=s;i=0;correctCount=0;answered=false;savedResult=false;tabSwitchFinished=false;finishingByTabSwitch=false;gameStarted=true;startTimer();
  QUESTIONS.sort(()=>Math.random()-0.5);
  render();
 }
@@ -214,6 +245,7 @@ function randomizeAndPlayAgain(){
   answered=false;
   savedResult=false;
   tabSwitchFinished=false;
+  finishingByTabSwitch=false;
   gameStarted=true;
   startTimer();
   render();
