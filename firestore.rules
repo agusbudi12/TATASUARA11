@@ -1,7 +1,13 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
+
     match /hasil/{docId} {
+
+      // ==============================
+      // SISWA - SIMPAN HASIL UJIAN
+      // ==============================
       allow create: if request.auth != null
         && request.auth.token.email == null
         && request.resource.data.uid == request.auth.uid
@@ -13,11 +19,19 @@ service cloud.firestore {
         && request.resource.data.total is number
         && request.resource.data.waktuSelesai is string;
 
-      allow read: if request.auth != null
-        && request.auth.token.email == "GANTI_EMAIL_GURU";
 
+      // ==============================
+      // GURU - MELIHAT HASIL
+      // ==============================
+      allow read: if request.auth != null
+        && request.auth.token.email == "agussant1308@gmail.com";
+
+
+      // ==============================
+      // GURU - MENGUBAH / MENGHAPUS
+      // ==============================
       allow update, delete: if request.auth != null
-        && request.auth.token.email == "GANTI_EMAIL_GURU";
+        && request.auth.token.email == "agussant1308@gmail.com";
     }
   }
 }
