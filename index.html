@@ -90,6 +90,18 @@ function timeUp(){
 let i=0, correctCount=0, answered=false, studentName="", studentAbsen="", sessionCode="", savedResult=false;
 const game=document.getElementById("game");
 
+// Anti-pindah-tab: jika siswa meninggalkan tab/aplikasi saat ujian berlangsung,
+// ujian langsung diakhiri dan nilai dari jawaban yang sudah dikerjakan ditampilkan.
+let tabSwitchFinished=false;
+document.addEventListener("visibilitychange",()=>{
+  if(document.hidden && gameStarted && !tabSwitchFinished){
+    tabSwitchFinished=true;
+    gameStarted=false;
+    stopTimer();
+    result(false,true);
+  }
+});
+
 function identity(){
  game.innerHTML=`
  <div class="center">
@@ -119,7 +131,7 @@ async function start(){
    alert("Koneksi rekap belum dikonfigurasi. Pastikan firebase-config.js sudah diisi dengan benar.");
    return;
  }
- studentName=n;studentAbsen=a;sessionCode=s;i=0;correctCount=0;answered=false;savedResult=false;gameStarted=true;startTimer();
+ studentName=n;studentAbsen=a;sessionCode=s;i=0;correctCount=0;answered=false;savedResult=false;tabSwitchFinished=false;gameStarted=true;startTimer();
  QUESTIONS.sort(()=>Math.random()-0.5);
  render();
 }
@@ -163,18 +175,24 @@ function answer(k){
  document.getElementById("next").classList.add("show");
 }
 function nextQuestion(){if(!gameStarted)return;i++;if(i<QUESTIONS.length)render();else{gameStarted=false;stopTimer();result(false)}}
-async function result(timedOut=false){
+async function result(timedOut=false, tabSwitched=false){
  stopTimer();
+ gameStarted=false;
  const nilai=Math.round(correctCount/QUESTIONS.length*100);
  let pred=nilai>=90?"🏆 MASTER JACK AUDIO!":nilai>=75?"🥳 JAGO TATA SUARA!":nilai>=60?"😎 LUMAYAN!":"💪 TERUS BERLATIH!";
+ const title=tabSwitched?"⚠️ UJIAN DIHENTIKAN!":(timedOut?"WAKTU HABIS!":pred);
+ const icon=tabSwitched?"🚫":(timedOut?"⏰":"🎉");
+ const message=tabSwitched
+   ? "Anda berpindah tab/aplikasi. Ujian otomatis diakhiri dan jawaban yang sudah dikerjakan tetap dihitung."
+   : (timedOut?"Waktu 2 menit telah habis. Jawaban yang sudah dikerjakan tetap dihitung.":"Waktu selesai.");
  game.innerHTML=`
  <div class="center">
-   <div style="font-size:78px">${timedOut?"⏰":"🎉"}</div>
-   <h2>${timedOut?"WAKTU HABIS!":pred}</h2>
+   <div style="font-size:78px">${icon}</div>
+   <h2>${title}</h2>
    <p style="font-size:20px"><b>${studentName}</b> • Absen <b>${studentAbsen}</b></p>
    <p style="font-size:16px">Sesi: <b>${sessionCode}</b></p>
    <p id="saveStatus" style="font-size:16px">⏳ Menyimpan nilai ke rekap...</p>
-   <p style="font-size:18px">${timedOut?"Waktu 2 menit telah habis. Jawaban yang sudah dikerjakan tetap dihitung.":"Waktu selesai."}</p>
+   <p style="font-size:18px">${message}</p>
    <div class="score">${nilai}</div>
    <div style="font-size:23px;font-weight:900">NILAI / 100</div>
    <p style="font-size:18px">Jawaban benar: <b>${correctCount}</b> dari <b>${QUESTIONS.length}</b> soal</p>
@@ -194,6 +212,8 @@ function randomizeAndPlayAgain(){
   i=0;
   correctCount=0;
   answered=false;
+  savedResult=false;
+  tabSwitchFinished=false;
   gameStarted=true;
   startTimer();
   render();
